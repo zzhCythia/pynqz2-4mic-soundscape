@@ -1,0 +1,38 @@
+# Vivado 生成物
+.cache/
+.runs/
+.gen/
+.sim/
+.ip_user_files/
+.hw/
+*.jou
+*.log
+*.str
+*.wdb
+*.wcfg
+*.dcp
+*.ltx
+xsim.dir/
+.Xil/
+
+# 位流等二进制（由 vivado/ 下的脚本与 system.bd 重新生成）
+*.bit
+*.bin
+*.hwh
+
+# 采集到的数据与临时文件
+*.npy
+*.wav
+recording_4mic*
+iladata*.csv
+*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# 系统
+.DS_Store
+Thumbs.db
+desktop.ini

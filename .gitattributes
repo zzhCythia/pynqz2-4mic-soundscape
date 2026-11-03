@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.v text
+*.sv text
+*.xdc text
+*.tcl text
+*.py text
+*.md text
+*.bd text
