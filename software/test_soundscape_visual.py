@@ -35,19 +35,20 @@ def main():
 
     commit = 0
     pulse = 0
-    colors = ((0, 90, 255), (40, 255, 130), (255, 55, 0))
+    colors = ((0, 70, 255), (0, 255, 40), (255, 35, 0))
     try:
         for step in range(120):
             commit ^= 1
             if step % 5 == 0:
                 pulse ^= 1
             angle = -90 + (step * 6) % 180
-            band = (step // 15) % 3
-            word0, word1 = packet(angle, colors[band], 150,
+            band = (step // 20) % 3
+            word0, word1 = packet(angle, colors[band], 230,
                                   band, pulse, commit)
             gpio.write(0x00, word0)
             gpio.write(0x08, word1)
-            print('angle={:+4d} band={}'.format(angle, band), flush=True)
+            print('angle={:+4d} band={} rgb={}'.format(
+                angle, band, colors[band]), flush=True)
             time.sleep(0.16)
     except KeyboardInterrupt:
         pass

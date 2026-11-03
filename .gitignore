@@ -19,6 +19,9 @@ xsim.dir/
 *.bit
 *.bin
 *.hwh
+!artifacts/
+!artifacts/*.bit
+!artifacts/*.hwh
 
 # 采集到的数据与临时文件
 *.npy

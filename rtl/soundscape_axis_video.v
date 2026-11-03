@@ -116,10 +116,10 @@ module soundscape_axis_video (
 
     reg [7:0] pixel_r, pixel_g, pixel_b;
     always @* begin
-        // 纯白背景（2026-11-04：由纯黑改为纯白，屏幕文字同步改黑色）
-        pixel_r = 8'd255;
-        pixel_g = 8'd255;
-        pixel_b = 8'd255;
+        // 纯黑背景
+        pixel_r = 8'd0;
+        pixel_g = 8'd0;
+        pixel_b = 8'd0;
 
         // 固定的暗色参考八边形
         if (ring_ref) begin

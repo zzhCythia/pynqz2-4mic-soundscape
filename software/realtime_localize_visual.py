@@ -606,8 +606,8 @@ def main():
     parser.add_argument(
         "--silence-db",
         type=float,
-        default=-55.0,
-        help="音量低于此值时忽略噪声频谱，默认 -55 dB",
+        default=-45.0,
+        help="音量低于此值时忽略噪声频谱，默认 -45 dB",
     )
     parser.add_argument(
         "--calibration",
@@ -639,4 +639,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -3,7 +3,7 @@
 基于 Xilinx Zynq-7020（PYNQ-Z2）的实时声源方位估计系统：4 只 INMP441 数字麦克风组成边长 8 cm 的方阵，
 PL 完成 I2S 采集、四通道打包、WS2812 驱动与 720p HDMI 逐像素图形生成，
 PS 运行 Python 完成 GCC-PHAT 时延估计与最小二乘方位解算，
-结果同时驱动 24 颗 WS2812 灯环和 HDMI 屏幕上的方向光点、频段纹理与扩散环。
+结果同时驱动 24 颗 WS2812 灯环和 HDMI 屏幕上的角度、音量、频率信息、方向环与声源节点。
 
 ```
 声音 → INMP441 ×4 → I2S 接收 → 128 bit AXI4-Stream → DMA → DDR
@@ -27,7 +27,7 @@ PS 运行 Python 完成 GCC-PHAT 时延估计与最小二乘方位解算，
 | DMA 包长 | 1920 帧/通道 = 40 ms，一次 TLAST |
 | 定位更新率 | 默认 4 包/窗 = 160 ms，可通过 `--packets-per-estimate` 调整 |
 | 方位分辨率 | 仿真条件下 ±0.3°（SNR 10 dB），实测受混响限制 |
-| HDMI 输出 | 1280×720@60，像素时钟 74.25 MHz，PL 直出不经 DDR |
+| HDMI 输出 | 1280×720@60，工程实际像素时钟约 74.255952 MHz，PL 直出不经 DDR |
 | PL 时钟 | 125 MHz（`sys_clk`），HDMI 像素时钟由 `clk_wiz` 倍频 |
 
 ## 目录结构
@@ -46,6 +46,7 @@ constraints/    pynqz2_4mic.xdc，麦克风与灯环引脚约束
 vivado/         system.bd 块设计 + 三个 Tcl 脚本（构建位流、挂接视频源、升级 BD）
 software/       PYNQ 板端 Python（DMA 采集、定位、灯环、HDMI 控制）
 docs/           原始设计说明（中文）
+artifacts/      最终验证过的板端文件（`4mic_hdmi_fix.bit/.hwh`，必须成对使用）
 ```
 
 ## RTL 模块要点
@@ -63,7 +64,7 @@ docs/           原始设计说明（中文）
 | 文件 | 作用 |
 |---|---|
 | `record_4mic.py` | DMA 循环采集与录制（npy/csv/wav + 元数据 json），含丢帧统计 |
-| `realtime_localize_visual.py` | 主程序：定位 + 灯环 + HDMI 同步刷新 |
+| `realtime_localize_visual.py` | 最终主程序：定位 + 灯环 + HDMI 同步刷新 |
 | `test_soundscape_visual.py` | 只测 HDMI 动画，不接麦克风 |
 | `test_led_ring.py` | 只测灯环流水灯 |
 | `hdmi_colorbars.py` | 彩条测试，确认 HDMI 通路正常 |
@@ -87,7 +88,7 @@ docs/           原始设计说明（中文）
    source vivado/add_soundscape_video.tcl   ;# 挂接 soundscape_axis_video 与两路 AXI GPIO
    ```
 
-3. Generate Bitstream，导出成对的 `.bit` / `.hwh`（两者必须来自同一次实现）；
+3. Generate Bitstream，导出成对的 `.bit` / `.hwh`（两者必须来自同一次实现）。若只想直接上板，可使用 `artifacts/4mic_hdmi_fix.bit` 和 `artifacts/4mic_hdmi_fix.hwh`；
 4. 把 `.bit`、`.hwh` 和 `software/` 下的脚本拷到板子同一目录，然后：
 
    ```bash
@@ -95,10 +96,17 @@ docs/           原始设计说明（中文）
    python3 realtime_localize_visual.py --overlay xxx.bit --calibration 0,0,2,0 --side-cm 8
    ```
 
+## 最终成品界面
+
+- 左上角显示 `ANGLE`、`LEVEL`、`PITCH`；
+- 中心区域显示方向环、角度刻度和实心声源节点；
+- 频率由低到高映射为蓝、绿、红，屏幕与灯环使用同一套 RGB 结果；
+- 灯环沿用原有 WS2812 控制逻辑，界面修改不改变灯环时序和数据格式；
+- 最终压缩包中的 `soundscape_visual` 与 `soundscape_transfer` 是重复版本；本仓库已固定采用最终 `soundscape_transfer` 对应的 RTL/Python 版本，避免两套文件混用。
+
 ## 说明
 
-- 仓库**不包含** Vivado 生成目录（`.cache/`、`.runs/`、`.gen/`、`.ip_user_files/`）与二进制 `.bit` / `.hwh`，
-  它们由 `vivado/system.bd` 与上述脚本重新生成。
+- 仓库**不包含** Vivado 生成目录（`.cache/`、`.runs/`、`.gen/`、`.ip_user_files/`）；最终验证过的 `.bit/.hwh` 仅保留在 `artifacts/`，便于直接上板，其他生成位流仍由 `vivado/system.bd` 与上述脚本重新生成。
 - `docs/` 下保留原始中文说明，其中 `README_led_ring.md` 是仅有灯环版本的设计说明，
   `README_soundscape_hdmi.md` 是加入 HDMI 动画后的说明。
 - 硬件平台：PYNQ-Z2（XC7Z020-1CLG400C），外设：4 × INMP441、24 颗 WS2812、HDMI OUT。

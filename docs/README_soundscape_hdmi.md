@@ -1,48 +1,57 @@
-# 四麦克风定位 HDMI 动画
+# 四麦克风定位与 HDMI 最终界面
 
-这份改动沿用已能显示彩条的 720p HDMI 通路。FPGA 直接生成每个像素，视频不经过 DDR。PS 仍负责四麦克风采集、方向与频率估计，并通过两路 GPIO 寄存器把结果送入 FPGA；WS2812 灯环继续由原来的 `axi_gpio_led` 控制。低频偏蓝、中频偏绿、高频偏红，颜色映射和亮度算法来自原来的实时定位脚本。画面是深色网格、呼吸中心、频段纹理、声响扩散环和方向光点。当前版本是几何动画，没有文字或频谱柱。
+本项目使用 PYNQ-Z2 完成四麦克风实时声源定位，并将结果同时输出到 24 颗 WS2812 灯环和 HDMI 显示器。
 
-## 文件
+最终 HDMI 界面以最终成品压缩包中的 `soundscape_visual/realtime_localize_visual.py` 和对应 RTL 为准：左上角显示 `ANGLE`、`LEVEL`、`PITCH`；中心区域显示方向环、角度刻度和实心声源节点。声源角度决定节点位置，音量影响显示强度，频率由低到高映射为蓝、绿、红。屏幕和 WS2812 灯环使用同一套角度、亮度和 RGB 结果。灯环控制逻辑保持原有实现，不因修改 HDMI 样式而改变。
 
-- `soundscape_axis_video.v`：1280×720 AXI4-Stream 像素源。
-- `add_soundscape_video.tcl`：在 Vivado 工程里替换彩条发生器并接好控制寄存器。
-- `test_soundscape_visual.py`：先单独测试 HDMI 动画，不需要接麦克风。
-- `realtime_localize_visual.py`：四麦克风定位、灯环和 HDMI 动画同时运行。板上运行时还要有原工程的 `record_4mic.py`。
-- `tb_soundscape_axis_video.v`：视频流握手、行尾和帧首的仿真检查。
+## 相关文件
 
-## 在队友电脑的 Vivado 中生成新 bit
+- `rtl/soundscape_axis_video.v`：1280×720 AXI4-Stream 视频源和最终方向环界面。
+- `vivado/add_soundscape_video.tcl`：在 Vivado 中挂接视频源和控制 GPIO。
+- `software/realtime_localize_visual.py`：实时采集、定位、灯环和 HDMI 同步控制。
+- `software/test_soundscape_visual.py`：不接麦克风时测试 HDMI 控制字和动画。
+- `software/hdmi_colorbars.py`：验证 HDMI 物理通路和彩条输出。
+- `software/record_4mic.py`：四通道 DMA 采集及录音。
 
-1. 先备份已验证的工程。在 Vivado 打开 `pynqz2_4mic_display` 中的 `pynqz2_4mic_features.xpr`，确认 Block Design 名为 `system`，并且彩条发生器名为 `v_tpg_0`。
-2. 将本目录的 `soundscape_axis_video.v` 和 `add_soundscape_video.tcl` 放在队友电脑的同一文件夹。例如 `E:/AMDFPGA/soundscape_visual/`。在 **Vivado Tcl Console** 输入：
+## 生成 bit/hwh
 
-   ```tcl
-   source {E:/AMDFPGA/soundscape_visual/add_soundscape_video.tcl}
-   ```
+1. 在 Vivado 打开最终 `pynqz2_4mic_display` 工程，确认 Block Design 名为 `system`。
+2. 确认 `soundscape_axis_video_0/M_AXIS_VIDEO` 连接到 `v_axi4s_vid_out_0/video_in`。
+3. 确认 `v_axi4s_vid_out_0/vtg_ce` 连接到 `v_tc_0/gen_clken`。
+4. 确认 `axi_gpio_visual` 已分配地址。
+5. 若 `validate_bd_design` 报视频频率不匹配，使用工程实际像素时钟 `74255952 Hz`，不要继续使用旧的 `74250000 Hz` 参数。
+6. 重新运行综合、实现和 Generate Bitstream。
+7. 必须从同一次实现中取得配对的 `.bit` 和 `.hwh`，不能混用旧文件。
 
-   脚本会备份 `system.bd` 为 `system.bd.before_soundscape`，然后替换 TPG、增加双路 AXI GPIO，验证并保存设计。若报错，应停在当前工程检查报错处；不要直接拿旧 bit 继续测试。
+## PYNQ-Z2 上板测试
 
-3. 打开 Block Design，确认 `soundscape_video_0/M_AXIS_VIDEO` 连至 `v_axi4s_vid_out_0/video_in`，`v_axi4s_vid_out_0/vtg_ce` 连至 `v_tc_0/gen_clken`。在 Address Editor 中确认 `axi_gpio_visual` 有地址。然后运行 **Generate Bitstream**，等待完成，检查实现后的 timing summary 没有失败。
-4. 将新生成的 `pynqz2_4mic_features.runs/impl_1/system_wrapper.bit` 复制并改名为 `4mic_soundscape.bit`。将对应的 `pynqz2_4mic_features.gen/sources_1/bd/system/hw_handoff/system.hwh` 复制并改名为 `4mic_soundscape.hwh`。两者必须来自同一次新设计。
+将以下文件上传到板上的同一目录，例如 `/home/xilinx/jupyter_notebooks/`：
 
-## 在 PYNQ-Z2 上测试
+```text
+4mic_hdmi_fix.bit
+4mic_hdmi_fix.hwh
+realtime_localize_visual.py
+test_soundscape_visual.py
+record_4mic.py
+```
 
-把 `4mic_soundscape.bit`、`4mic_soundscape.hwh`、`test_soundscape_visual.py`、`realtime_localize_visual.py` 和原来的 `record_4mic.py` 上传到板子的**同一目录**，例如 `/home/xilinx/jupyter_notebooks/`。HDMI 线接板子的 **HDMI OUT**。板上终端输入：
+HDMI 线接 PYNQ-Z2 的 **HDMI OUT**，然后执行：
 
-```sh
+```bash
 cd /home/xilinx/jupyter_notebooks
-python3 test_soundscape_visual.py --overlay 4mic_soundscape.bit
+python3 test_soundscape_visual.py --overlay 4mic_hdmi_fix.bit
 ```
 
-应看到方向光点移动、纹理在蓝绿红之间变化。这个独立测试通过后，再运行：
+确认屏幕能显示方向环后，再运行实时定位：
 
-```sh
-python3 realtime_localize_visual.py --overlay 4mic_soundscape.bit --calibration 0,0,2,0 --side-cm 8
+```bash
+python3 realtime_localize_visual.py --overlay 4mic_hdmi_fix.bit --calibration 0,0,2,0 --side-cm 8
 ```
 
-该命令会重新加载 bit 并同时运行麦克风、灯环和 HDMI。直接在 Vivado Hardware Manager 下载 bit 只会启动 FPGA 的静态画面；随声音变化需要运行这个板上脚本。停止时在该终端按 `Ctrl+C`。
+停止程序：`Ctrl+C`。直接在 Vivado Hardware Manager 下载 bit 只能验证 FPGA 视频静态输出；角度、频率、音量和灯环同步变化必须运行板端 Python 程序。
 
-## 控制字和验证范围
+## 注意
 
-`axi_gpio_visual` 的通道 1 包含有符号方向坐标、亮度和置信度；通道 2 包含 RGB、频段、静音标志、瞬态标志与更新位。软件先写通道 1，最后写通道 2；FPGA 在下一帧起点接收，避免画到一半换色。视频源在 AXI `TREADY=0` 时保持像素、帧首和行尾信号不变。
-
-在本地只有工程副本，没有队友电脑上的 Vivado、FPGA 板或 HDL 仿真器，因此这里未运行综合、实现、仿真或上板测试。生成 bit 后重点检查 74.25 MHz 视频时钟时序，以及方向/颜色与灯环是否一致。若 FPGA 资源或时序不够，先去掉高频星点效果，再评估流水线处理。
+- `soundscape_visual` 和 `soundscape_transfer` 在最终压缩包中存在重复版本；提交 GitHub 时应明确最终采用的版本，避免两套脚本混用。
+- 只修改 Python 不会改变 FPGA 中的画面布局；修改 `soundscape_axis_video.v` 后必须重新生成 bit/hwh。
+- 修改 HDMI 画面时不要改动 WS2812 的 GPIO 打包、灯珠编号和时序。
