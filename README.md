@@ -78,7 +78,7 @@ docs/           原始设计说明（中文）
 
 ## 复现步骤
 
-环境：Vivado 2025.2 + PYNQ-Z2（PYNQ 3.x 镜像）。
+环境：Vivado 2025.2 + PYNQ-Z2 官方镜像（带 `pynq` Python 包与 numpy 即可，无需额外安装）。
 
 1. 新建工程或打开原始工程，确认 Block Design 名为 `system`；
 2. 在 Vivado Tcl Console 依次执行：
